@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>NAUGHTS AND CROSSES</title>
+    <meta name="description" content="Play away your days" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://fonts.googleapis.com/css?family=Geostar&display=swap" rel="stylesheet"/>
+    <style type="text/css">
+        * {
+            font-family: 'Geostar', 'Courier New', Courier, monospace;
+            color: #001f3f;
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 10px;
+            height: 100%;
+            width: 100%;
+
+            background-color: #ff4136;
+        }
+
+        #grid {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .disabled {
+            pointer-events: none;
+            cursor: auto;
+        }
+
+        .hide {
+            display: none;
+        }
+
+        .flex-grid {
+            display: flex;
+        }
+
+        .col {
+            flex: 1;
+        }
+
+        .sq {
+            height: 100px;
+            margin: 20px 40px;
+            padding: 10px;
+
+            background-color: transparent;
+            border: none;
+
+            font-size: 48px;
+            color: inherit;
+        }
+
+        .sq:hover {
+            cursor: pointer;
+        }
+    </style>
+  </head>
+
+  <body>
+    <!--[if IE]>
+      <p class="browserupgrade">
+        You are using an <strong>outdated</strong> browser. Please
+        <a href="https://browsehappy.com/">upgrade your browser</a> to improve
+        your experience and security.
+      </p>
+    <![endif]-->
+    <h1>NAUGHTS AND CROSSES</h1>
+    <h2 id="hint">Naughty</h2>
+    <a href="#" id="reset" class="hide">Start over</a>
+
+    <div id="grid">
+      <div class="flex-grid" data-row="0">
+        <button class="col sq" data-col="0" ; type="button">_</button>
+        <button class="col sq" data-col="1" ; type="button">_</button>
+        <button class="col sq" data-col="2" ; type="button">_</button>
+      </div>
+      <div class="flex-grid" data-row="1">
+        <button class="col sq" data-col="0" ; type="button">_</button>
+        <button class="col sq" data-col="1" ; type="button">_</button>
+        <button class="col sq" data-col="2" ; type="button">_</button>
+      </div>
+      <div class="flex-grid" data-row="2">
+        <button class="col sq" data-col="0" ; type="button">_</button>
+        <button class="col sq" data-col="1" ; type="button">_</button>
+        <button class="col sq" data-col="2" ; type="button">_</button>
+      </div>
+    </div>
+
+    <script>
+        const PLAYER_O = -1;
+        const PLAYER_X = 1;
+
+        const TEXT_ICON = {
+            [PLAYER_O]: 'O',
+            [PLAYER_X]: 'X',
+        };
+
+        const getNewBoard = () => [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+
+        const state = {
+            turn: PLAYER_O,
+            board: getNewBoard(),
+            movesMade: 0,
+            winner: null,
+        };
+
+        const gridEl = document.getElementById('grid');
+        const squareEls = document.getElementsByClassName('sq');
+        const hintEl = document.getElementById('hint');
+        const resetEl = document.getElementById('reset');
+
+        /* Take a board state and return a winner, if any is found. Null indicates no winner. */
+        function checkForWinner(board) {
+            const sumSquares = squares => squares.reduce((a, b) => a + b);
+
+            // Check rows
+            const row0 = sumSquares(board[0]);
+            const row1 = sumSquares(board[1]);
+            const row2 = sumSquares(board[2]);
+
+            // Check cols
+            const col0 = sumSquares([board[0][0], board[1][0], board[2][0]]);
+            const col1 = sumSquares([board[0][1], board[1][1], board[2][1]]);
+            const col2 = sumSquares([board[0][2], board[1][2], board[2][2]]);
+
+            // Check diagonals
+            const diag0 = sumSquares([board[0][0], board[1][1], board[2][2]]);
+            const diag1 = sumSquares([board[0][2], board[1][1], board[2][0]]);
+
+            let winner = null;
+
+            // Look for sums of 3 or -3 to indicate a win
+            [row0, row1, row2, col0, col1, col2, diag0, diag1].some(sum => {
+                if (Math.abs(sum) === 3) {
+                    winner = sum < 0 ? PLAYER_O : PLAYER_X;
+                    return true;
+                }
+            });
+
+            return winner;
+        }
+
+        /* Claims a square for the specified player */
+        function selectSquare(squareEl, player) {
+            const col = Number(squareEl.dataset.col);
+            const row = Number(squareEl.parentElement.dataset.row);
+
+            state.board[row][col] = player;
+
+            squareEl.innerText = TEXT_ICON[player];
+            squareEl.classList.add('disabled');
+        }
+
+        function updateTurn() {
+            state.turn = state.turn === PLAYER_O ? PLAYER_X : PLAYER_O;
+            hintEl.innerText = state.turn === PLAYER_O ? 'Naughty' : 'Get crossing';
+        }
+
+        /* Resets the ui and state ready for a new game. */
+        function restart() {
+            state.board = getNewBoard();
+            state.movesMade = 0;
+            state.winner = null;
+
+            for (let i = 0; i < squareEls.length; i++) {
+                squareEls[i].innerText = '_';
+                squareEls[i].classList.remove('disabled');
+            }
+            gridEl.classList.remove('disabled');
+            resetEl.classList.add('hide');
+
+            updateTurn();
+        }
+
+        function makeMove(squareEl) {
+            selectSquare(squareEl, state.turn);
+
+            state.movesMade++;
+
+            if (state.movesMade >= 3) {
+                state.winner = checkForWinner(state.board);
+            }
+
+            if (state.winner || state.movesMade === 9) {
+                hintEl.innerText = state.winner ? state.winner === PLAYER_O ? 'Naughts win!' : 'Crosses win!' : 'It\'s a draw!';
+
+                gridEl.classList.add('disabled');
+                resetEl.classList.remove('hide');
+            } else {
+                updateTurn();
+            }
+        }
+
+        // Square event listeners
+        for (let i = 0; i < squareEls.length; i++) {
+            squareEls[i].addEventListener('click', e => makeMove(e.currentTarget));
+        }
+
+        // Reset event listener
+        resetEl.addEventListener('click', e => {
+            e.preventDefault();
+            restart();
+        });
+
+    </script>
+  </body>
+</html>
